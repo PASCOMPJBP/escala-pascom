@@ -527,6 +527,7 @@ function viewEscala(){
       <div class="celfoot"><input id="note-${c.id}" data-note="${c.id}" placeholder="Observação da coordenação (ex.: chegar 30 min antes)" value="${esc(c.notes||"")}" ${S.admin?"":"hidden"}></div>
       ${obsList(c).length ? `<div class="obs">${obsList(c).map(([vid,t]) => `<div class="obsitem"><b>${esc(volById(vid)?.name || "Voluntário")}:</b> <span>${esc(t)}</span>${canEdit()?` <button class="btn ghost" data-act="obs-clear" data-id="${c.id}" data-vol="${esc(vid)}">Resolvido</button>`:""}</div>`).join("")}</div>` : ""}
       <div class="celfoot">
+        ${safeUrl(c.media) ? `<a class="btn ghost" href="${esc(safeUrl(c.media))}" target="_blank" rel="noopener">👁️ Ver fotos</a><button class="btn ghost" data-act="copy-photos" data-id="${c.id}">🔗 Copiar link das fotos</button>` : ""}
         ${mediaLink(c) && (canEdit() || (me && assignedIds(c).includes(me))) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
         ${canEdit() ? `<input id="media-${c.id}" data-media="${c.id}" type="url" placeholder="Pasta só desta celebração (opcional)" value="${esc(c.media||"")}">` : ""}
       </div>
@@ -636,6 +637,12 @@ document.addEventListener("click", async e => {
     case "add-cel": S.addingCel=true; render(); break;
     case "cancel-cel": S.addingCel=false; render(); break;
     case "wa": S.waOpen=!S.waOpen; render(); break;
+    case "copy-photos": {
+      const c = S.cels.find(x=>x.id===id); const url = c && safeUrl(c.media); if (!url) break;
+      try { await navigator.clipboard.writeText(url); toast("Link das fotos copiado. É só colar no Instagram."); }
+      catch(err){ prompt("Copie o link das fotos:", url); }
+      break;
+    }
     case "goto-today": { const t=new Date(); gotoDate(iso(t.getFullYear(),t.getMonth(),t.getDate())); break; }
     case "copy": {
       const txt = waText();
