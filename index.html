@@ -66,6 +66,12 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
 .cel{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .cel.hl{box-shadow:0 0 0 2px var(--gold)}
+.cel{scroll-margin-top:64px}
+.cel.flash{animation:flash 2.4s ease}
+@keyframes flash{0%,40%{box-shadow:0 0 0 3px var(--accent,#1f4e8c)}100%{box-shadow:none}}
+.gotoday{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.gotoday label{display:flex;flex-direction:row;align-items:center;gap:8px;margin:0;font-weight:600;color:var(--fg)}
+.gotoday input{width:auto;min-width:160px}
 .celhead{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .day{width:50px;flex:none;text-align:center;border-radius:9px;background:var(--accent-soft);color:var(--accent);padding:4px 0}
 .day b{display:block;font:800 22px/1 var(--f-display)}
@@ -448,6 +454,11 @@ function viewEscala(){
         ${cels.filter(c=>obsList(c).length).length ? `<span class="pill warn">${cels.filter(c=>obsList(c).length).length} com recado de voluntário</span>`:""}
       </div>
     </div>
+    <div class="gotoday">
+      <label for="goto-date">📅 Ir para o dia</label>
+      <input type="date" id="goto-date" value="${esc(S.gotoDate||"")}">
+      <button class="btn ghost" data-act="goto-today">Hoje</button>
+    </div>
     <div class="row" ${S.admin?"":"hidden"}>
       <button class="btn primary" data-act="gen">Criar celebrações do mês</button>
       <button class="btn" data-act="fill">Preencher vagas automaticamente</button>
@@ -492,7 +503,7 @@ function viewEscala(){
     const d = parseIso(c.date);
     const mine = S.focusVol && assignedIds(c).includes(S.focusVol);
     const me = myVolId(); const meV = me && volById(me);
-    h += `<article class="cel${mine?" hl":""}">
+    h += `<article class="cel${mine?" hl":""}" id="cel-${esc(c.id)}" data-date="${esc(c.date)}">
       <div class="celhead">
         <div class="day"><b>${d.getDate()}</b><span>${WDS[d.getDay()]}</span></div>
         <div class="celinfo"><div class="t">${esc(c.title)} · ${period(c.time)}</div><div class="s">${WD[d.getDay()]}, ${ddmm(c.date)} às ${esc(c.time)}</div></div>
@@ -625,6 +636,7 @@ document.addEventListener("click", async e => {
     case "add-cel": S.addingCel=true; render(); break;
     case "cancel-cel": S.addingCel=false; render(); break;
     case "wa": S.waOpen=!S.waOpen; render(); break;
+    case "goto-today": { const t=new Date(); gotoDate(iso(t.getFullYear(),t.getMonth(),t.getDate())); break; }
     case "copy": {
       const txt = waText();
       try { await navigator.clipboard.writeText(txt); toast("Texto copiado. É só colar no grupo."); }
@@ -668,8 +680,23 @@ document.addEventListener("click", async e => {
   }
 });
 
+function gotoDate(v){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v||"")) return;
+  const d = parseIso(v); S.gotoDate = v; S.view = "escala";
+  S.month = {y:d.getFullYear(), m:d.getMonth()}; lsSet("pascom-month", JSON.stringify(S.month)); S.confirmDel=null;
+  render();
+  const arts = [...document.querySelectorAll("article.cel[data-date]")];
+  let a = arts.find(x=>x.dataset.date===v), exact = !!a;
+  if (!a) a = arts.find(x=>x.dataset.date>v);
+  if (!arts.length){ toast(`Ainda não há celebrações cadastradas em ${MES[d.getMonth()]}.`); return; }
+  if (!exact) toast(a ? `Não há celebração em ${ddmm(v)}. Mostrando a próxima, ${ddmm(a.dataset.date)}.` : `Não há celebração em ${ddmm(v)} nem depois, neste mês.`);
+  if (!a) return;
+  requestAnimationFrame(()=>{ a.scrollIntoView({behavior:"smooth", block:"start"}); a.classList.remove("flash"); void a.offsetWidth; a.classList.add("flash"); });
+}
+
 document.addEventListener("change", async e => {
   const t = e.target;
+  if (t.id==="goto-date"){ gotoDate(t.value); return; }
   if (t.id==="focus-vol"){ S.focusVol=t.value; lsSet("pascom-focus", t.value); render(); return; }
   if (t.dataset.cel){
     const c = S.cels.find(x=>x.id===t.dataset.cel); if (!c) return;
