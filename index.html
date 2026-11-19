@@ -527,7 +527,7 @@ function viewEscala(){
       <div class="celfoot"><input id="note-${c.id}" data-note="${c.id}" placeholder="Observação da coordenação (ex.: chegar 30 min antes)" value="${esc(c.notes||"")}" ${S.admin?"":"hidden"}></div>
       ${obsList(c).length ? `<div class="obs">${obsList(c).map(([vid,t]) => `<div class="obsitem"><b>${esc(volById(vid)?.name || "Voluntário")}:</b> <span>${esc(t)}</span>${canEdit()?` <button class="btn ghost" data-act="obs-clear" data-id="${c.id}" data-vol="${esc(vid)}">Resolvido</button>`:""}</div>`).join("")}</div>` : ""}
       <div class="celfoot">
-        ${mediaLink(c) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
+        ${mediaLink(c) && (canEdit() || (me && assignedIds(c).includes(me))) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
         ${canEdit() ? `<input id="media-${c.id}" data-media="${c.id}" type="url" placeholder="Pasta só desta celebração (opcional)" value="${esc(c.media||"")}">` : ""}
       </div>
       ${me && assignedIds(c).includes(me) ? `<div class="celfoot"><input id="obs-${c.id}" data-obs="${c.id}" placeholder="Seu recado (ex.: não vou poder ir, alguém pode me substituir?)" value="${esc((c.obs||{})[me]||"")}"></div>` : ""}
