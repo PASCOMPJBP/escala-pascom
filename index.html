@@ -91,6 +91,10 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 .slots select.empty{border-color:var(--warn);background:var(--warn-soft)}
 .slots select.mine{background:var(--hl);border-color:var(--gold)}
 .who{font-weight:600}
+.here{display:inline-block;width:12px;height:12px;border-radius:50%;background:#1e88ff;box-shadow:0 0 0 3px rgba(30,136,255,.25),0 0 10px 2px rgba(30,136,255,.75);margin-left:8px;vertical-align:middle;animation:herepulse 2s ease-in-out infinite}
+@keyframes herepulse{50%{box-shadow:0 0 0 5px rgba(30,136,255,.15),0 0 14px 4px rgba(30,136,255,.9)}}
+.heretxt{color:#1e6fd9;font-weight:700;font-size:.85em;margin-left:4px}
+.btn.ready{background:#1e6fd9;border-color:#1e6fd9;color:#fff}
 .who.mine{background:var(--hl);border-radius:6px;padding:2px 8px;justify-self:start}
 .who.empty{color:var(--warn);font-weight:500}
 .obs{margin:0 14px 12px;padding:10px 12px;border-radius:9px;background:var(--warn-soft);display:grid;gap:4px;font-size:13.5px}
@@ -296,6 +300,9 @@ function period(t){ const h=parseInt(t)||0; return h<12?"Manhã":h<18?"Tarde":"N
 const extraOf = (c, r) => Math.max(0, parseInt((c.extra||{})[r.id])||0);
 function slotList(c, r){ const a = c.assign || {}; const out=[]; const n=(r.qty||1)+extraOf(c,r); for(let i=0;i<n;i++) out.push(a[r.id+"_"+i]||""); return out; }
 const assignedIds = c => Object.values(c.assign||{}).filter(Boolean);
+const isHere = (c, id) => !!(id && (c.here||{})[id]);
+const hereMark = (c, id) => isHere(c,id) ? `<span class="here" role="img" aria-label="Chegou e está pronto" title="Chegou e está pronto"></span><span class="heretxt">pronto</span>` : "";
+const todayIso = () => { const t=new Date(); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); };
 const fltOn = () => !!(S.flt.vol || S.flt.role || S.flt.wd!=="" || S.flt.empty);
 function passFilter(c){
   const f = S.flt, a = c.assign || {};
@@ -547,9 +554,9 @@ function viewEscala(){
         ${celRoles(c).map(r => slotList(c,r).map((sel,i,arr) => {
           const sid = `s-${c.id}-${r.id}-${i}`;
           const lbl = `${esc(r.name)}${arr.length>1?` ${i+1}`:""}${i>=(r.qty||1)?` <span class="xtra">extra</span>`:""}`;
-          if (canEdit()) return `<span class="rl"><label for="${sid}" style="all:unset">${lbl}</label></span>
+          if (canEdit()) return `<span class="rl"><label for="${sid}" style="all:unset">${lbl}</label>${hereMark(c, sel)}</span>
           <select id="${sid}" data-cel="${c.id}" data-role="${r.id}" data-i="${i}" class="${sel?"":"empty"}${sel&&sel===S.focusVol?" mine":""}">${volOptions(r, sel, c)}</select>`;
-          if (sel) return `<span class="rl">${lbl}</span><span class="who${sel===me?" mine":""}">${esc(volById(sel)?.name || "?")}${sel===me?" (você)":""}</span>`;
+          if (sel) return `<span class="rl">${lbl}</span><span class="who${sel===me?" mine":""}">${esc(volById(sel)?.name || "?")}${sel===me?" (você)":""}${hereMark(c, sel)}</span>`;
           const can = meV && (meV.roles||[]).includes(r.id) && !assignedIds(c).includes(me);
           return `<span class="rl">${lbl}</span><span class="row"><span class="who empty">a definir</span>${can?`<button class="btn primary" data-act="signup" data-id="${c.id}" data-key="${r.id}_${i}">Quero servir</button>`:""}</span>`;
         }).join("")).join("")}
@@ -566,6 +573,7 @@ function viewEscala(){
         ${mediaLink(c) && (canEdit() || (me && assignedIds(c).includes(me))) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
         ${canEdit() ? `<input id="media-${c.id}" data-media="${c.id}" type="url" placeholder="Pasta só desta celebração (opcional)" value="${esc(c.media||"")}">` : ""}
       </div>
+      ${me && assignedIds(c).includes(me) && c.date===todayIso() ? `<div class="celfoot">${isHere(c,me) ? `<span class="btn ready" role="status">🔵 Você está marcado como pronto</span><button class="btn ghost" data-act="here" data-id="${c.id}">Desfazer</button>` : `<button class="btn primary" data-act="here" data-id="${c.id}">✋ Cheguei, estou pronto</button>`}</div>` : ""}
       ${me && assignedIds(c).includes(me) ? `<div class="celfoot"><input id="obs-${c.id}" data-obs="${c.id}" placeholder="Seu recado (ex.: não vou poder ir, alguém pode me substituir?)" value="${esc((c.obs||{})[me]||"")}"></div>` : ""}
     </article>`;
   });
@@ -695,6 +703,12 @@ document.addEventListener("click", async e => {
       const extra = {...(c.extra||{})}; extra[r.id] = add ? x+1 : x-1; if (!extra[r.id]) delete extra[r.id];
       await store.updCel(id, {extra});
       toast(add ? `Vaga extra de ${r.name} liberada só em ${ddmm(c.date)}.` : "Vaga extra removida."); break;
+    }
+    case "here": {
+      const c = S.cels.find(x=>x.id===id); const me = myVolId(); if (!c || !me || !assignedIds(c).includes(me)) return;
+      const here = {...(c.here||{})}; const on = !here[me];
+      if (on) here[me] = new Date().toISOString(); else delete here[me];
+      await store.updCel(id, {here}); toast(on ? "Pronto! A luz azul mostra que você chegou." : "Marcação desfeita."); break;
     }
     case "signup": {
       const c = S.cels.find(x=>x.id===id); const me = myVolId(); if (!c || !me) return;
