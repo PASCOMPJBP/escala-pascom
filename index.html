@@ -72,6 +72,11 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 .gotoday{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .gotoday label{display:flex;flex-direction:row;align-items:center;gap:8px;margin:0;font-weight:600;color:var(--fg)}
 .gotoday input{width:auto;min-width:160px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px;align-items:end}
+.filters label{margin:0}
+.filters .chk{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:600;min-height:40px}
+.filters .chk input{width:auto}
+.fltinfo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .celhead{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .day{width:50px;flex:none;text-align:center;border-radius:9px;background:var(--accent-soft);color:var(--accent);padding:4px 0}
 .day b{display:block;font:800 22px/1 var(--f-display)}
@@ -183,6 +188,7 @@ const S = {
   cels: [],              // {id,date,time,title,roles[],assign:{"roleId_i":volId},obs:{volId:texto},notes}
   month: (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })(),
   focusVol: lsGet("pascom-focus") || "",
+  flt: {vol:"", role:"", wd:"", empty:false},
   editingVol: null,
   confirmDel: null,
   waOpen: false,
@@ -288,6 +294,17 @@ function celRoles(c){ return Array.isArray(c.roles) ? roles().filter(r=>c.roles.
 function period(t){ const h=parseInt(t)||0; return h<12?"Manhã":h<18?"Tarde":"Noite"; }
 function slotList(c, r){ const a = c.assign || {}; const out=[]; for(let i=0;i<(r.qty||1);i++) out.push(a[r.id+"_"+i]||""); return out; }
 const assignedIds = c => Object.values(c.assign||{}).filter(Boolean);
+const fltOn = () => !!(S.flt.vol || S.flt.role || S.flt.wd!=="" || S.flt.empty);
+function passFilter(c){
+  const f = S.flt, a = c.assign || {};
+  const rs = celRoles(c).filter(r => !f.role || r.id===f.role);
+  if (f.role && !rs.length) return false;
+  if (f.wd!=="" && parseIso(c.date).getDay()!==+f.wd) return false;
+  const slots = rs.flatMap(r => slotList(c, r));
+  if (f.vol && !slots.includes(f.vol)) return false;
+  if (f.empty && !slots.some(x=>!x)) return false;
+  return true;
+}
 function withSlot(c, key, val){ const a = {}; Object.entries(c.assign||{}).forEach(([k,v]) => { if (v) a[k]=v; }); if (val) a[key]=val; else delete a[key]; return a; }
 const safeUrl = u => /^https:\/\//i.test(String(u||"").trim()) ? String(u).trim() : "";
 const mediaLink = c => safeUrl(c.media) || safeUrl(S.config && S.config.mediaLink);
@@ -459,6 +476,13 @@ function viewEscala(){
       <input type="date" id="goto-date" value="${esc(S.gotoDate||"")}">
       <button class="btn ghost" data-act="goto-today">Hoje</button>
     </div>
+    <div class="filters" role="search" aria-label="Filtrar a escala">
+      <label>🔎 Voluntário<select id="flt-vol"><option value="">Todos</option>${activeVols().map(v=>`<option value="${esc(v.id)}"${v.id===S.flt.vol?" selected":""}>${esc(v.name)}</option>`).join("")}</select></label>
+      <label>Função<select id="flt-role"><option value="">Todas</option>${roles().map(r=>`<option value="${esc(r.id)}"${r.id===S.flt.role?" selected":""}>${esc(r.name)}</option>`).join("")}</select></label>
+      <label>Dia da semana<select id="flt-wd"><option value="">Todos</option>${WD.map((w,i)=>`<option value="${i}"${String(i)===String(S.flt.wd)?" selected":""}>${esc(w)}</option>`).join("")}</select></label>
+      <label class="chk"><input type="checkbox" id="flt-empty"${S.flt.empty?" checked":""}> Só com vaga vazia</label>
+    </div>
+    ${fltOn() ? `<div class="fltinfo"><span class="pill">Mostrando ${cels.filter(passFilter).length} de ${cels.length} celebrações</span><button class="btn ghost" data-act="flt-clear">Limpar filtros</button></div>` : ""}
     <div class="row" ${S.admin?"":"hidden"}>
       <button class="btn primary" data-act="gen">Criar celebrações do mês</button>
       <button class="btn" data-act="fill">Preencher vagas automaticamente</button>
@@ -499,7 +523,12 @@ function viewEscala(){
       <p class="muted" style="margin:0;max-width:46ch">“Criar celebrações do mês” usa os horários fixos (${weekly().length ? weekly().map(w=>WDS[w.weekday]+" "+w.time).join(", ") : "nenhum cadastrado ainda"}). Datas especiais entram como celebração avulsa.</p></div>`;
     return h;
   }
-  cels.forEach(c => {
+  const shown = cels.filter(passFilter);
+  if (!shown.length){
+    h += `<div class="panel empty-state"><h3>Nenhuma celebração com esses filtros em ${MES[m]}</h3><button class="btn" data-act="flt-clear">Limpar filtros</button></div>`;
+    return h;
+  }
+  shown.forEach(c => {
     const d = parseIso(c.date);
     const mine = S.focusVol && assignedIds(c).includes(S.focusVol);
     const me = myVolId(); const meV = me && volById(me);
@@ -643,6 +672,7 @@ document.addEventListener("click", async e => {
       catch(err){ prompt("Copie o link das fotos:", url); }
       break;
     }
+    case "flt-clear": S.flt={vol:"", role:"", wd:"", empty:false}; render(); break;
     case "goto-today": { const t=new Date(); gotoDate(iso(t.getFullYear(),t.getMonth(),t.getDate())); break; }
     case "copy": {
       const txt = waText();
@@ -696,7 +726,7 @@ function gotoDate(v){
   let a = arts.find(x=>x.dataset.date===v), exact = !!a;
   if (!a) a = arts.find(x=>x.dataset.date>v);
   if (!arts.length){ toast(`Ainda não há celebrações cadastradas em ${MES[d.getMonth()]}.`); return; }
-  if (!exact) toast(a ? `Não há celebração em ${ddmm(v)}. Mostrando a próxima, ${ddmm(a.dataset.date)}.` : `Não há celebração em ${ddmm(v)} nem depois, neste mês.`);
+  if (!exact) toast(a ? `Não há celebração${fltOn()?" (com os filtros)":""} em ${ddmm(v)}. Mostrando a próxima, ${ddmm(a.dataset.date)}.` : `Não há celebração em ${ddmm(v)} nem depois, neste mês.`);
   if (!a) return;
   requestAnimationFrame(()=>{ a.scrollIntoView({behavior:"smooth", block:"start"}); a.classList.remove("flash"); void a.offsetWidth; a.classList.add("flash"); });
 }
@@ -704,6 +734,10 @@ function gotoDate(v){
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id==="goto-date"){ gotoDate(t.value); return; }
+  if (t.id==="flt-vol"){ S.flt.vol=t.value; render(); return; }
+  if (t.id==="flt-role"){ S.flt.role=t.value; render(); return; }
+  if (t.id==="flt-wd"){ S.flt.wd=t.value; render(); return; }
+  if (t.id==="flt-empty"){ S.flt.empty=t.checked; render(); return; }
   if (t.id==="focus-vol"){ S.focusVol=t.value; lsSet("pascom-focus", t.value); render(); return; }
   if (t.dataset.cel){
     const c = S.cels.find(x=>x.id===t.dataset.cel); if (!c) return;
