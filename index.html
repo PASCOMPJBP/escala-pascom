@@ -76,6 +76,7 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 .filters label{margin:0}
 .filters .chk{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:600;min-height:40px}
 .filters .chk input{width:auto}
+.xtra{font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:1px 5px;margin-left:4px}
 .fltinfo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .celhead{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .day{width:50px;flex:none;text-align:center;border-radius:9px;background:var(--accent-soft);color:var(--accent);padding:4px 0}
@@ -292,7 +293,8 @@ const activeVols = () => S.volunteers.filter(v=>v.active!==false).sort((a,b)=>a.
 
 function celRoles(c){ return Array.isArray(c.roles) ? roles().filter(r=>c.roles.includes(r.id)) : roles(); }
 function period(t){ const h=parseInt(t)||0; return h<12?"Manhã":h<18?"Tarde":"Noite"; }
-function slotList(c, r){ const a = c.assign || {}; const out=[]; for(let i=0;i<(r.qty||1);i++) out.push(a[r.id+"_"+i]||""); return out; }
+const extraOf = (c, r) => Math.max(0, parseInt((c.extra||{})[r.id])||0);
+function slotList(c, r){ const a = c.assign || {}; const out=[]; const n=(r.qty||1)+extraOf(c,r); for(let i=0;i<n;i++) out.push(a[r.id+"_"+i]||""); return out; }
 const assignedIds = c => Object.values(c.assign||{}).filter(Boolean);
 const fltOn = () => !!(S.flt.vol || S.flt.role || S.flt.wd!=="" || S.flt.empty);
 function passFilter(c){
@@ -542,9 +544,9 @@ function viewEscala(){
       </div>
       <div class="slots">
         ${celRoles(c).length ? "" : `<span class="rl">Sem funções</span><span class="muted small">Marque abaixo quais funções esta celebração precisa.</span>`}
-        ${celRoles(c).map(r => slotList(c,r).map((sel,i) => {
+        ${celRoles(c).map(r => slotList(c,r).map((sel,i,arr) => {
           const sid = `s-${c.id}-${r.id}-${i}`;
-          const lbl = `${esc(r.name)}${(r.qty||1)>1?` ${i+1}`:""}`;
+          const lbl = `${esc(r.name)}${arr.length>1?` ${i+1}`:""}${i>=(r.qty||1)?` <span class="xtra">extra</span>`:""}`;
           if (canEdit()) return `<span class="rl"><label for="${sid}" style="all:unset">${lbl}</label></span>
           <select id="${sid}" data-cel="${c.id}" data-role="${r.id}" data-i="${i}" class="${sel?"":"empty"}${sel&&sel===S.focusVol?" mine":""}">${volOptions(r, sel, c)}</select>`;
           if (sel) return `<span class="rl">${lbl}</span><span class="who${sel===me?" mine":""}">${esc(volById(sel)?.name || "?")}${sel===me?" (você)":""}</span>`;
@@ -552,6 +554,10 @@ function viewEscala(){
           return `<span class="rl">${lbl}</span><span class="row"><span class="who empty">a definir</span>${can?`<button class="btn primary" data-act="signup" data-id="${c.id}" data-key="${r.id}_${i}">Quero servir</button>`:""}</span>`;
         }).join("")).join("")}
       </div>
+      ${canEdit() && celRoles(c).length ? `<div class="celfoot"><span class="small muted">Vaga extra só neste dia:</span>${celRoles(c).map(r => {
+        const x = extraOf(c,r), last = slotList(c,r).slice(-1)[0];
+        return `<button class="btn ghost" data-act="extra-add" data-id="${c.id}" data-role="${r.id}">+1 ${esc(r.name)}</button>${x ? `<button class="btn ghost danger" data-act="extra-del" data-id="${c.id}" data-role="${r.id}"${last?` disabled title="Esvazie a vaga extra antes de remover"`:""}>−1 ${esc(r.name)}</button>` : ""}`;
+      }).join("")}</div>` : ""}
       <div class="celfoot" ${S.admin?"":"hidden"}><span class="small muted">Funções:</span>${roles().map(r=>{ const on = celRoles(c).some(x=>x.id===r.id); return `<button class="chipbtn" aria-pressed="${on}" data-act="cel-role" data-id="${c.id}" data-role="${r.id}">${esc(r.name)}</button>`; }).join("")}</div>
       <div class="celfoot"><input id="note-${c.id}" data-note="${c.id}" placeholder="Observação da coordenação (ex.: chegar 30 min antes)" value="${esc(c.notes||"")}" ${S.admin?"":"hidden"}></div>
       ${obsList(c).length ? `<div class="obs">${obsList(c).map(([vid,t]) => `<div class="obsitem"><b>${esc(volById(vid)?.name || "Voluntário")}:</b> <span>${esc(t)}</span>${canEdit()?` <button class="btn ghost" data-act="obs-clear" data-id="${c.id}" data-vol="${esc(vid)}">Resolvido</button>`:""}</div>`).join("")}</div>` : ""}
@@ -681,6 +687,15 @@ document.addEventListener("click", async e => {
       break;
     }
     case "del-cel": S.confirmDel=id; render(); break;
+    case "extra-add": case "extra-del": {
+      const c = S.cels.find(x=>x.id===id); const r = c && roles().find(x=>x.id===b.dataset.role); if (!c || !r) return;
+      const x = extraOf(c,r), add = act==="extra-add";
+      if (add && x>=5){ toast("Limite de 5 vagas extras."); return; }
+      if (!add){ if (!x) return; if ((c.assign||{})[r.id+"_"+((r.qty||1)+x-1)]){ toast("Tire o nome da vaga extra antes de remover."); return; } }
+      const extra = {...(c.extra||{})}; extra[r.id] = add ? x+1 : x-1; if (!extra[r.id]) delete extra[r.id];
+      await store.updCel(id, {extra});
+      toast(add ? `Vaga extra de ${r.name} liberada só em ${ddmm(c.date)}.` : "Vaga extra removida."); break;
+    }
     case "signup": {
       const c = S.cels.find(x=>x.id===id); const me = myVolId(); if (!c || !me) return;
       if ((c.assign||{})[b.dataset.key]){ toast("Alguém já pegou essa vaga."); return; }
