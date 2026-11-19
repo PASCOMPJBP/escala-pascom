@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Escala PASCOM</title>
+<meta name="theme-color" content="#1f4e8c">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: app de coluna única, cabeçalho fixo com abas; cartões de celebração empilhados por data */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --fg:#17202e; --muted:#5d6878; --line:#dde3ea;
+  --accent:#1f4e8c; --accent-fg:#ffffff; --accent-soft:#e3ecf8;
+  --gold:#b0821c; --warn:#b4471f; --warn-soft:#fbe9e2; --ok:#2c7a4b; --ok-soft:#e2f2e8;
+  --hl:#fff4cf;
+  --f-display:"Manrope",system-ui,sans-serif; --f-body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --surface:#18202b; --fg:#e7ecf2; --muted:#9aa6b6; --line:#2a3544;
+  --accent:#7fb0ef; --accent-fg:#0d1825; --accent-soft:#1f3048;
+  --gold:#e0b34f; --warn:#f29a78; --warn-soft:#3a2219; --ok:#7ccf9c; --ok-soft:#173225; --hl:#3a3216; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --surface:#18202b; --fg:#e7ecf2; --muted:#9aa6b6; --line:#2a3544;
+  --accent:#7fb0ef; --accent-fg:#0d1825; --accent-soft:#1f3048;
+  --gold:#e0b34f; --warn:#f29a78; --warn-soft:#3a2219; --ok:#7ccf9c; --ok-soft:#173225; --hl:#3a3216; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;padding-block:14px 8px}
+.mark{width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;flex:none}
+.brand h1{font-family:var(--f-display);font-size:19px;font-weight:800;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.brand p{margin:0;color:var(--muted);font-size:13px}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{border:0;background:none;color:var(--muted);font:600 14px var(--f-body);padding:10px 12px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding-block:18px 60px;display:grid;gap:16px}
+h2{font-family:var(--f-display);font-size:17px;margin:0;font-weight:800}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 14px var(--f-body);padding:9px 14px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;background:none;padding:6px 8px}
+.btn.danger{color:var(--warn)}
+.btn:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;max-width:100%}
+label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.monthbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.monthnav{display:flex;align-items:center;gap:4px}
+.monthnav strong{font-family:var(--f-display);font-size:20px;min-width:180px;text-align:center;text-transform:capitalize}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-variant-numeric:tabular-nums}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
+.cel{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cel.hl{box-shadow:0 0 0 2px var(--gold)}
+.celhead{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.day{width:50px;flex:none;text-align:center;border-radius:9px;background:var(--accent-soft);color:var(--accent);padding:4px 0}
+.day b{display:block;font:800 22px/1 var(--f-display)}
+.day span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.celinfo{flex:1;min-width:0}
+.celinfo .t{font-weight:700;font-family:var(--f-display);font-size:16px}
+.celinfo .s{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.slots{display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:8px 12px;padding:12px 14px;align-items:center}
+.slots .rl{font-size:13px;font-weight:600;color:var(--muted)}
+.slots select{width:100%}
+.slots select.empty{border-color:var(--warn);background:var(--warn-soft)}
+.slots select.mine{background:var(--hl);border-color:var(--gold)}
+.who{font-weight:600}
+.who.mine{background:var(--hl);border-radius:6px;padding:2px 8px;justify-self:start}
+.who.empty{color:var(--warn);font-weight:500}
+.obs{margin:0 14px 12px;padding:10px 12px;border-radius:9px;background:var(--warn-soft);display:grid;gap:4px;font-size:13.5px}
+.obsitem{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.celfoot{padding:0 14px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.celfoot input{flex:1;min-width:160px;font-size:13px}
+.vol{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.vol:first-child{border-top:0}
+.vol .n{font-weight:600}
+.vol .meta{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.count{font:700 13px var(--f-body);font-variant-numeric:tabular-nums;color:var(--accent);min-width:44px;text-align:right}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:flex;align-items:center;gap:6px;font-weight:500;color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:5px 10px;cursor:pointer}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.list{display:grid;gap:6px}
+.li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.li input[type=text],.li input:not([type]){flex:1;min-width:120px}
+.empty-state{text-align:center;padding:28px 16px;display:grid;gap:10px;justify-items:center}
+.empty-state h3{margin:0;font-family:var(--f-display)}
+pre.wa{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font:13px/1.5 ui-monospace,Menlo,monospace;max-height:50vh;overflow:auto;margin:0}
+.banner{border-radius:10px;padding:10px 12px;font-size:13px;background:var(--accent-soft);color:var(--fg)}
+.banner.warn{background:var(--warn-soft)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20}
+.chipbtn{font:600 12px var(--f-body);padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
+.chipbtn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.confirm{display:flex;gap:6px;align-items:center;font-size:13px}
+@media (max-width:520px){
+  .slots{grid-template-columns:1fr;gap:2px}
+  .slots .rl{margin-top:6px}
+  .monthnav strong{min-width:0;font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v7"/><path d="M8.5 6.5h7"/><path d="M4 21v-5a8 8 0 0 1 16 0v5"/><path d="M9 21v-3a3 3 0 0 1 6 0v3"/></svg>
+      </div>
+      <div>
+        <h1>Escala PASCOM</h1>
+        <p>Pastoral da Comunicação · Paróquia de Jesus Bom Pastor</p>
+      </div>
+    </div>
+    <nav role="tablist">
+      <button role="tab" id="tab-escala" data-view="escala" aria-selected="true">Escala</button>
+      <button role="tab" id="tab-voluntarios" data-view="voluntarios" aria-selected="false">Voluntários</button>
+      <button role="tab" id="tab-ajustes" data-view="ajustes" aria-selected="false" data-admin-only>Funções e horários</button>
+      <span style="flex:1"></span>
+      <button id="logout" hidden>Sair</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <div class="panel"><span class="muted">Carregando a escala…</span></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+(function(){
+"use strict";
+// ---------- utilidades ----------
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Math.random().toString(36).slice(2,10);
+const WD = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const WDS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const MES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const pad = n => String(n).padStart(2,"0");
+const iso = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
+const parseIso = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const ddmm = s => s.slice(8,10)+"/"+s.slice(5,7);
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
+
+function toast(msg){
+  const t = document.createElement("div"); t.className="toast"; t.textContent=msg; t.setAttribute("role","status");
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 2400);
+}
+
+// ---------- estado ----------
+const S = {
+  view: "escala",
+  config: null,          // {roles:[{id,name,qty}], weekly:[{id,weekday,time,title}], parish}
+  volunteers: [],        // {id,name,phone,roles[],active,unavail[]}
+  cels: [],              // {id,date,time,title,roles[],assign:{"roleId_i":volId},obs:{volId:texto},notes}
+  month: (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })(),
+  focusVol: lsGet("pascom-focus") || "",
+  editingVol: null,
+  confirmDel: null,
+  waOpen: false,
+  mode: "loading",       // loading | login | shared
+  user: null, admin: false, adminEmails: [], authMsg: "", authBusy: false,
+  loaded: {config:false, vols:false, cels:false},
+  stale: false,
+};
+try { const m = JSON.parse(lsGet("pascom-month")||"null"); if (m && typeof m.y==="number") S.month = m; } catch(e){}
+
+const SUGGESTED = {
+  roles: [ {name:"Fotos",qty:1},{name:"Transmissão",qty:1} ],
+  // r: índices das funções usadas naquele horário (0 = Fotos, 1 = Transmissão)
+  weekly: [
+    {weekday:2,time:"19:00",title:"Missa",r:[0]},
+    {weekday:3,time:"19:00",title:"Missa",r:[0]},
+    {weekday:4,time:"19:00",title:"Missa",r:[0]},
+    {weekday:5,time:"19:00",title:"Missa",r:[0]},
+    {weekday:6,time:"19:30",title:"Missa",r:[0]},
+    {weekday:0,time:"07:30",title:"Missa",r:[0,1]},
+    {weekday:0,time:"16:00",title:"Missa",r:[0]},
+    {weekday:0,time:"19:30",title:"Missa",r:[0]}
+  ]
+};
+
+// ---------- Firebase: login e dados compartilhados ----------
+let store = null, fdb = null, unsubs = [];
+const myEmail = () => (S.user && S.user.email || "").toLowerCase();
+const meVol = () => S.volunteers.find(v => (v.email||"").toLowerCase() === myEmail());
+
+function makeFirestoreStore(db){
+  const timer = setTimeout(()=>{ S.stale = true; render(); }, 10000);
+  const done = () => { if (S.loaded.config && S.loaded.vols && S.loaded.cels){ clearTimeout(timer); S.stale=false; } render(); };
+  const onErr = e => { clearTimeout(timer); S.stale = true; console.error(e); S.loaded={config:true,vols:true,cels:true}; render(); };
+  unsubs.push(db.doc("config/main").onSnapshot(snap => { S.config = snap.exists ? snap.data() : null; S.loaded.config = true; done(); }, onErr));
+  unsubs.push(db.doc("config/admins").onSnapshot(snap => {
+    S.adminEmails = snap.exists ? (snap.data().emails||[]).map(e=>String(e).toLowerCase()) : [];
+    S.noAdmins = !snap.exists;
+    S.admin = S.adminEmails.includes(myEmail()); done();
+  }, onErr));
+  unsubs.push(db.collection("volunteers").onSnapshot(snap => { S.volunteers = snap.docs.map(d=>({id:d.id, ...d.data()})); S.loaded.vols = true; done(); }, onErr));
+  unsubs.push(db.collection("celebrations").onSnapshot(snap => { S.cels = snap.docs.map(d=>({id:d.id, ...d.data()})); S.loaded.cels = true; done(); }, onErr));
+  const guard = p => p.catch(e => { toast(e && e.code==="permission-denied" ? "Só a coordenação pode alterar isso." : "Não foi possível salvar. Verifique a internet e tente de novo."); throw e; });
+  return {
+    setConfig: c => guard(db.doc("config/main").set(c)),
+    putVol: (id,v) => guard(db.collection("volunteers").doc(id).set(v)),
+    updVol: (id,patch) => guard(db.collection("volunteers").doc(id).update(patch)),
+    delVol: id => guard(db.collection("volunteers").doc(id).delete()),
+    putCel: (id,v) => guard(db.collection("celebrations").doc(id).set(v)),
+    updCel: (id,patch) => guard(db.collection("celebrations").doc(id).update(patch)),
+    delCel: id => guard(db.collection("celebrations").doc(id).delete()),
+    claimAdmin: () => guard(db.doc("config/admins").set({emails:[myEmail()]})),
+    setAdmins: emails => guard(db.doc("config/admins").set({emails})),
+  };
+}
+
+function boot(){
+  if (!window.firebase || !window.FIREBASE_CONFIG || String(window.FIREBASE_CONFIG.apiKey||"").startsWith("COLE")){
+    $("#app").innerHTML = `<div class="panel"><h2>Falta configurar o Firebase</h2><p class="muted" style="margin:0">Preencha o arquivo <b>firebase-config.js</b> com os dados do seu projeto Firebase, como explica o passo a passo.</p></div>`;
+    return;
+  }
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  fdb = firebase.firestore();
+  firebase.auth().onAuthStateChanged(u => {
+    unsubs.forEach(f=>{ try{f();}catch(e){} }); unsubs = [];
+    S.user = u; S.loaded = {config:false,vols:false,cels:false};
+    if (!u){ S.mode="login"; store=null; render(); return; }
+    S.mode="shared"; store = makeFirestoreStore(fdb); render();
+  });
+}
+
+function viewLogin(){
+  return `<form class="panel" id="form-login" style="max-width:420px;margin:24px auto 0;width:100%">
+    <h2>Entrar na escala</h2>
+    <p class="small muted" style="margin:0">Use o e-mail que a coordenação cadastrou para você. No primeiro acesso, toque em “Criar minha senha”.</p>
+    <label>E-mail<input id="login-email" type="email" autocomplete="email" required></label>
+    <label>Senha<input id="login-pass" type="password" autocomplete="current-password" minlength="6" required></label>
+    ${S.authMsg ? `<div class="banner warn">${esc(S.authMsg)}</div>` : ""}
+    <div class="row">
+      <button class="btn primary" type="submit" data-mode="in" ${S.authBusy?"disabled":""}>Entrar</button>
+      <button class="btn" type="submit" data-mode="up" ${S.authBusy?"disabled":""}>Criar minha senha</button>
+      <button class="btn ghost" type="button" data-act="reset-pass">Esqueci a senha</button>
+    </div>
+  </form>`;
+}
+const AUTH_ERR = {
+  "auth/invalid-credential":"E-mail ou senha incorretos.", "auth/invalid-login-credentials":"E-mail ou senha incorretos.", "auth/wrong-password":"Senha incorreta.", "auth/user-not-found":"Não há conta com esse e-mail. Toque em “Criar minha senha”.",
+  "auth/email-already-in-use":"Esse e-mail já tem senha. Use “Entrar” ou “Esqueci a senha”.", "auth/weak-password":"A senha precisa ter pelo menos 6 caracteres.",
+  "auth/invalid-email":"Esse e-mail não parece válido.", "auth/too-many-requests":"Muitas tentativas. Espere alguns minutos e tente de novo."
+};
+
+// ---------- dados derivados ----------
+const roles = () => (S.config && S.config.roles) || [];
+const weekly = () => (S.config && S.config.weekly) || [];
+const volById = id => S.volunteers.find(v=>v.id===id);
+const roleById = id => roles().find(r=>r.id===id);
+const monthKey = () => `${S.month.y}-${pad(S.month.m+1)}`;
+const monthCels = () => S.cels.filter(c=>c.date && c.date.startsWith(monthKey()))
+  .sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+const activeVols = () => S.volunteers.filter(v=>v.active!==false).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+
+function celRoles(c){ return Array.isArray(c.roles) ? roles().filter(r=>c.roles.includes(r.id)) : roles(); }
+function period(t){ const h=parseInt(t)||0; return h<12?"Manhã":h<18?"Tarde":"Noite"; }
+function slotList(c, r){ const a = c.assign || {}; const out=[]; for(let i=0;i<(r.qty||1);i++) out.push(a[r.id+"_"+i]||""); return out; }
+const assignedIds = c => Object.values(c.assign||{}).filter(Boolean);
+function withSlot(c, key, val){ const a = {}; Object.entries(c.assign||{}).forEach(([k,v]) => { if (v) a[k]=v; }); if (val) a[key]=val; else delete a[key]; return a; }
+const safeUrl = u => /^https:\/\//i.test(String(u||"").trim()) ? String(u).trim() : "";
+const mediaLink = c => safeUrl(c.media) || safeUrl(S.config && S.config.mediaLink);
+const obsList = c => Object.entries(c.obs||{}).filter(([,t]) => t);
+// Quem pode montar a escala nesta página e qual voluntário é a pessoa que está vendo
+function canEdit(){ return S.admin; }
+function myVolId(){ const v = meVol(); return v ? v.id : null; }
+function countsFor(cels){
+  const n = {}; cels.forEach(c => assignedIds(c).forEach(id => { n[id]=(n[id]||0)+1; }));
+  return n;
+}
+function isUnavail(v, date){ return (v.unavail||[]).includes(ddmm(date)); }
+function celStats(cels){
+  let total=0, filled=0;
+  cels.forEach(c => celRoles(c).forEach(r => slotList(c,r).forEach(id => { total++; if(id) filled++; })));
+  return {total, filled};
+}
+
+// ---------- ações ----------
+async function ensureConfig(useSuggested){
+  const rs = useSuggested ? SUGGESTED.roles.map(r=>({id:uid(),...r})) : [];
+  const c = {
+    roles: rs,
+    weekly: useSuggested ? SUGGESTED.weekly.map(({r,...w})=>({id:uid(),...w,roles:r.map(i=>rs[i].id)})) : [],
+  };
+  await store.setConfig(c);
+}
+function saveConfig(patch){ return store.setConfig({...(S.config||{roles:[],weekly:[]}), ...patch}); }
+
+async function generateMonth(){
+  if (!weekly().length){ toast("Cadastre os horários fixos em Funções e horários."); return; }
+  const {y,m} = S.month; const days = new Date(y,m+1,0).getDate();
+  const existing = new Set(monthCels().map(c=>c.date+" "+c.time));
+  let n=0;
+  for (let d=1; d<=days; d++){
+    const wd = new Date(y,m,d).getDay();
+    for (const w of weekly().filter(w=>Number(w.weekday)===wd)){
+      const date = iso(y,m,d);
+      if (existing.has(date+" "+w.time)) continue;
+      const cel = {date, time:w.time, title:w.title||"Missa", assign:{}, obs:{}, notes:""};
+      if (Array.isArray(w.roles)) cel.roles = w.roles.filter(id=>roleById(id));
+      await store.putCel(uid(), cel); n++;
+    }
+  }
+  toast(n ? `${n} celebrações criadas.` : "As celebrações deste mês já estavam criadas.");
+}
+
+async function autoFill(){
+  const cels = monthCels();
+  if (!cels.length){ toast("Crie as celebrações do mês primeiro."); return; }
+  const counts = countsFor(cels);
+  const lastDate = {};
+  cels.forEach(c => assignedIds(c).forEach(id => { if(!lastDate[id] || c.date>lastDate[id]) lastDate[id]=c.date; }));
+  let filled = 0, missing = 0;
+  for (const c of cels){
+    let assign = withSlot(c, "", "");
+    const inCel = new Set(assignedIds(c));
+    const sameDay = new Set(cels.filter(o=>o.date===c.date && o.id!==c.id).flatMap(assignedIds));
+    let changed = false;
+    for (const r of celRoles(c)){
+      const arr = slotList(c,r);
+      for (let i=0;i<arr.length;i++){
+        if (arr[i]) continue;
+        const cands = activeVols().filter(v => (v.roles||[]).includes(r.id) && !inCel.has(v.id) && !isUnavail(v,c.date));
+        if (!cands.length){ missing++; continue; }
+        cands.sort((a,b) => (sameDay.has(a.id)-sameDay.has(b.id)) || ((counts[a.id]||0)-(counts[b.id]||0)) || (String(lastDate[a.id]||"").localeCompare(String(lastDate[b.id]||""))) || (Math.random()-.5));
+        const pick = cands[0];
+        arr[i]=pick.id; assign[r.id+"_"+i]=pick.id; inCel.add(pick.id); counts[pick.id]=(counts[pick.id]||0)+1; lastDate[pick.id]=c.date; filled++; changed = true;
+      }
+    }
+    if (changed) await store.updCel(c.id, {assign});
+  }
+  toast(filled ? `${filled} vagas preenchidas${missing?`, ${missing} sem voluntário disponível`:""}.` : (missing ? `${missing} vagas sem voluntário com essa função.` : "Todas as vagas já estavam preenchidas."));
+}
+
+function waText(){
+  const {y,m} = S.month;
+  const WDL = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+  const lines = [`*Escala PASCOM · ${MES[m]}/${y}*`, ``];
+  const byDate = {};
+  monthCels().forEach(c => (byDate[c.date] = byDate[c.date] || []).push(c));
+  const names = (c,r) => slotList(c,r).map(id => id ? (volById(id)?.name || "?") : "").filter(Boolean).join(" e ");
+  const extra = c => (c.title && c.title.toLowerCase()!=="missa") ? " "+c.title : "";
+  Object.keys(byDate).sort().forEach(date => {
+    const list = byDate[date]; const d = parseIso(date);
+    const head = `*${ddmm(date)} ${WDL[d.getDay()]}*`;
+    if (list.length===1 && celRoles(list[0]).length<=1){
+      const c = list[0]; const r = celRoles(c)[0];
+      lines.push(`${head}${extra(c)} ${r ? names(c,r) : ""}`.trimEnd());
+      if (c.notes) lines.push(`Obs.: ${c.notes}`);
+    } else {
+      lines.push(head);
+      list.forEach(c => {
+        const rs = celRoles(c);
+        const parts = rs.map(r => { const n = names(c,r); return rs.length>1 ? `${r.name}: ${n || "a definir"}` : (n || "a definir"); });
+        lines.push(`${period(c.time)}${extra(c)}: ${parts.join(" · ")}`);
+        if (c.notes) lines.push(`Obs.: ${c.notes}`);
+      });
+    }
+    lines.push("");
+  });
+  return lines.join("\n").trimEnd();
+}
+
+// ---------- render ----------
+function render(){
+  if (!S.admin && S.view==="ajustes") S.view="escala";
+  document.querySelectorAll("nav button[data-view]").forEach(b => { b.setAttribute("aria-selected", String(b.dataset.view===S.view)); b.hidden = S.mode!=="shared" || (b.hasAttribute("data-admin-only") && !S.admin); });
+  $("#logout").hidden = !S.user;
+  const app = $("#app");
+  const active = document.activeElement && document.activeElement.id;
+  if (S.mode==="login"){ app.innerHTML = viewLogin(); return; }
+  if (!store || (S.mode==="shared" && !(S.loaded.config && S.loaded.vols && S.loaded.cels) && !S.stale)){
+    app.innerHTML = `<div class="panel"><span class="muted">Carregando a escala…</span></div>`; return;
+  }
+  let html = "";
+  if (S.noAdmins) html += `<div class="banner">Ainda não há coordenação definida. Se você coordena a PASCOM, <button class="btn" data-act="claim-admin">tornar-me coordenação</button></div>`;
+  if (!S.admin && !meVol() && S.loaded.vols) html += `<div class="banner">Seu e-mail (${esc(myEmail())}) ainda não está ligado a um voluntário. Peça à coordenação para cadastrá-lo.</div>`;
+  if (S.stale) html += `<div class="banner warn">Não consegui falar com o servidor agora. O que aparece pode estar desatualizado.</div>`;
+  if (!S.config && !S.admin){ html += `<div class="panel empty-state"><h3>A escala ainda não foi montada</h3><p class="muted" style="margin:0">Assim que a coordenação configurar, ela aparece aqui.</p></div>`; app.innerHTML = html; return; }
+  if (!S.config){
+    html += `<div class="panel empty-state">
+      <h3>Vamos montar a escala da PASCOM</h3>
+      <p class="muted" style="max-width:46ch;margin:0">Comece com as funções Fotos e Transmissão e os horários da paróquia: terça a sexta às 19h, sábado às 19h30 e domingo às 7h30 (com transmissão), 16h e 19h30. Missas de segunda entram como celebração avulsa.</p>
+      <div class="row" style="justify-content:center">
+        <button class="btn primary" data-act="start-suggested">Começar com a sugestão</button>
+        <button class="btn" data-act="start-blank">Começar do zero</button>
+      </div></div>`;
+    app.innerHTML = html; return;
+  }
+  if (S.view==="escala") html += viewEscala();
+  if (S.view==="voluntarios") html += viewVols();
+  if (S.view==="ajustes") html += viewAjustes();
+  app.innerHTML = html;
+  if (active){ const el = document.getElementById(active); if (el && el.focus) el.focus(); }
+}
+
+function volOptions(r, selected, c){
+  const vs = activeVols();
+  const withRole = vs.filter(v => (v.roles||[]).includes(r.id));
+  const others = vs.filter(v => !(v.roles||[]).includes(r.id));
+  const opt = v => `<option value="${esc(v.id)}"${v.id===selected?" selected":""}>${esc(v.name)}${isUnavail(v,c.date)?" (indisponível)":""}</option>`;
+  let h = `<option value="">— a definir —</option>`;
+  if (withRole.length) h += `<optgroup label="${esc(r.name)}">${withRole.map(opt).join("")}</optgroup>`;
+  if (others.length) h += `<optgroup label="Outros voluntários">${others.map(opt).join("")}</optgroup>`;
+  if (selected && !vs.find(v=>v.id===selected)) h += `<option value="${esc(selected)}" selected>${esc(volById(selected)?.name || "Removido")}</option>`;
+  return h;
+}
+
+function viewEscala(){
+  if (!S.admin && !S.focusVol && meVol()) S.focusVol = meVol().id;
+  const cels = monthCels(); const st = celStats(cels);
+  const {y,m} = S.month;
+  let h = `<section class="panel">
+    <div class="monthbar">
+      <div class="monthnav">
+        <button class="btn ghost" data-act="prev" aria-label="Mês anterior">‹</button>
+        <strong>${MES[m]} ${y}</strong>
+        <button class="btn ghost" data-act="next" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="stats">
+        <span class="pill">${cels.length} celebrações</span>
+        ${st.total ? `<span class="pill ${st.filled===st.total?"ok":"warn"}">${st.filled}/${st.total} vagas preenchidas</span>`:""}
+        ${cels.filter(c=>obsList(c).length).length ? `<span class="pill warn">${cels.filter(c=>obsList(c).length).length} com recado de voluntário</span>`:""}
+      </div>
+    </div>
+    <div class="row" ${S.admin?"":"hidden"}>
+      <button class="btn primary" data-act="gen">Criar celebrações do mês</button>
+      <button class="btn" data-act="fill">Preencher vagas automaticamente</button>
+      <button class="btn" data-act="add-cel">+ Celebração avulsa</button>
+      <button class="btn" data-act="wa">${S.waOpen?"Fechar texto":"Texto para WhatsApp"}</button>
+    </div>
+    ${S.admin ? "" : `<div class="row"><button class="btn" data-act="wa">${S.waOpen?"Fechar texto":"Texto para WhatsApp"}</button></div>`}
+    <div class="row">
+      <label style="flex:1;min-width:200px">Destacar a escala de
+        <select id="focus-vol"><option value="">Ninguém</option>${activeVols().map(v=>`<option value="${esc(v.id)}"${v.id===S.focusVol?" selected":""}>${esc(v.name)}</option>`).join("")}</select>
+      </label>
+      ${S.focusVol ? `<span class="pill" style="align-self:end;margin-bottom:8px">${cels.filter(c=>assignedIds(c).includes(S.focusVol)).length} vez(es) no mês</span>`:""}
+    </div>
+  </section>`;
+  if (S.addingCel){
+    h += `<form class="panel" id="form-cel">
+      <h2>Celebração avulsa</h2>
+      <div class="grid2">
+        <label>Data<input type="date" id="cel-date" required value="${iso(y,m,1)}"></label>
+        <label>Horário<input type="time" id="cel-time" required value="19:00"></label>
+        <label>Celebração<input id="cel-title" required value="Missa" placeholder="Ex.: Missa de cura, Missa de Natal"></label>
+      </div>
+      <div class="checks">${roles().map(r=>`<label><input type="checkbox" id="cr-${r.id}" checked> ${esc(r.name)}</label>`).join("")}</div>
+      <div class="row"><button class="btn primary" type="submit">Adicionar</button><button class="btn" type="button" data-act="cancel-cel">Cancelar</button></div>
+    </form>`;
+  }
+  if (S.waOpen){
+    h += `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Texto para o grupo</h2>
+      <div class="row"><button class="btn primary" data-act="copy">Copiar texto</button>
+      <a class="btn" href="https://wa.me/?text=${encodeURIComponent(waText())}" target="_blank" rel="noopener">Abrir no WhatsApp</a></div></div>
+      <pre class="wa" id="wa-text">${esc(waText())}</pre></section>`;
+  }
+  if (!roles().length && S.admin){
+    h += `<div class="panel empty-state"><h3>Nenhuma função cadastrada</h3><p class="muted" style="margin:0">Cadastre as funções da equipe (Fotos, Transmissão) para montar as vagas.</p><button class="btn primary" data-view-go="ajustes">Cadastrar funções</button></div>`;
+  }
+  if (!cels.length){
+    h += `<div class="panel empty-state"><h3>Nenhuma celebração em ${MES[m]}</h3>
+      <p class="muted" style="margin:0;max-width:46ch">“Criar celebrações do mês” usa os horários fixos (${weekly().length ? weekly().map(w=>WDS[w.weekday]+" "+w.time).join(", ") : "nenhum cadastrado ainda"}). Datas especiais entram como celebração avulsa.</p></div>`;
+    return h;
+  }
+  cels.forEach(c => {
+    const d = parseIso(c.date);
+    const mine = S.focusVol && assignedIds(c).includes(S.focusVol);
+    const me = myVolId(); const meV = me && volById(me);
+    h += `<article class="cel${mine?" hl":""}">
+      <div class="celhead">
+        <div class="day"><b>${d.getDate()}</b><span>${WDS[d.getDay()]}</span></div>
+        <div class="celinfo"><div class="t">${esc(c.title)} · ${period(c.time)}</div><div class="s">${WD[d.getDay()]}, ${ddmm(c.date)} às ${esc(c.time)}</div></div>
+        ${!canEdit() ? "" : S.confirmDel===c.id
+          ? `<span class="confirm">Excluir? <button class="btn danger" data-act="del-cel-yes" data-id="${c.id}">Sim</button><button class="btn" data-act="del-cel-no">Não</button></span>`
+          : `<button class="btn ghost danger" data-act="del-cel" data-id="${c.id}" aria-label="Excluir celebração">Excluir</button>`}
+      </div>
+      <div class="slots">
+        ${celRoles(c).length ? "" : `<span class="rl">Sem funções</span><span class="muted small">Marque abaixo quais funções esta celebração precisa.</span>`}
+        ${celRoles(c).map(r => slotList(c,r).map((sel,i) => {
+          const sid = `s-${c.id}-${r.id}-${i}`;
+          const lbl = `${esc(r.name)}${(r.qty||1)>1?` ${i+1}`:""}`;
+          if (canEdit()) return `<span class="rl"><label for="${sid}" style="all:unset">${lbl}</label></span>
+          <select id="${sid}" data-cel="${c.id}" data-role="${r.id}" data-i="${i}" class="${sel?"":"empty"}${sel&&sel===S.focusVol?" mine":""}">${volOptions(r, sel, c)}</select>`;
+          if (sel) return `<span class="rl">${lbl}</span><span class="who${sel===me?" mine":""}">${esc(volById(sel)?.name || "?")}${sel===me?" (você)":""}</span>`;
+          const can = meV && (meV.roles||[]).includes(r.id) && !assignedIds(c).includes(me);
+          return `<span class="rl">${lbl}</span><span class="row"><span class="who empty">a definir</span>${can?`<button class="btn primary" data-act="signup" data-id="${c.id}" data-key="${r.id}_${i}">Quero servir</button>`:""}</span>`;
+        }).join("")).join("")}
+      </div>
+      <div class="celfoot" ${S.admin?"":"hidden"}><span class="small muted">Funções:</span>${roles().map(r=>{ const on = celRoles(c).some(x=>x.id===r.id); return `<button class="chipbtn" aria-pressed="${on}" data-act="cel-role" data-id="${c.id}" data-role="${r.id}">${esc(r.name)}</button>`; }).join("")}</div>
+      <div class="celfoot"><input id="note-${c.id}" data-note="${c.id}" placeholder="Observação da coordenação (ex.: chegar 30 min antes)" value="${esc(c.notes||"")}" ${S.admin?"":"hidden"}></div>
+      ${obsList(c).length ? `<div class="obs">${obsList(c).map(([vid,t]) => `<div class="obsitem"><b>${esc(volById(vid)?.name || "Voluntário")}:</b> <span>${esc(t)}</span>${canEdit()?` <button class="btn ghost" data-act="obs-clear" data-id="${c.id}" data-vol="${esc(vid)}">Resolvido</button>`:""}</div>`).join("")}</div>` : ""}
+      <div class="celfoot">
+        ${mediaLink(c) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
+        ${canEdit() ? `<input id="media-${c.id}" data-media="${c.id}" type="url" placeholder="Pasta só desta celebração (opcional)" value="${esc(c.media||"")}">` : ""}
+      </div>
+      ${me && assignedIds(c).includes(me) ? `<div class="celfoot"><input id="obs-${c.id}" data-obs="${c.id}" placeholder="Seu recado (ex.: não vou poder ir, alguém pode me substituir?)" value="${esc((c.obs||{})[me]||"")}"></div>` : ""}
+    </article>`;
+  });
+  return h;
+}
+
+function viewVols(){
+  const cels = monthCels(); const counts = countsFor(cels);
+  const v = S.editingVol;
+  let h = `<section class="panel">
+    <div class="row" style="justify-content:space-between"><h2>Equipe da PASCOM</h2>
+    ${v || !S.admin ? "" : `<button class="btn primary" data-act="new-vol">+ Novo voluntário</button>`}</div>`;
+  if (v){
+    h += `<form id="form-vol" class="panel" style="background:var(--bg)">
+      <div class="grid2">
+        <label>Nome<input id="vol-name" required value="${esc(v.name||"")}" placeholder="Nome e sobrenome" ${S.admin?"":"disabled"}></label>
+        <label>E-mail de acesso<input id="vol-email" type="email" value="${esc(v.email||"")}" placeholder="email@exemplo.com" ${S.admin?"":"disabled"}></label>
+        <label>WhatsApp<input id="vol-phone" inputmode="tel" value="${esc(v.phone||"")}" placeholder="(00) 00000-0000"></label>
+      </div>
+      <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Funções que sabe fazer</div>
+        <div class="checks">${roles().map(r=>`<label><input type="checkbox" id="vr-${r.id}" value="${r.id}" ${S.admin?"":"disabled"}${(v.roles||[]).includes(r.id)?" checked":""}> ${esc(r.name)}</label>`).join("") || `<span class="muted small">Cadastre funções primeiro.</span>`}</div></div>
+      <label>Datas em que não pode servir (dd/mm, separadas por vírgula)<input id="vol-unavail" value="${esc((v.unavail||[]).join(", "))}" placeholder="Ex.: 06/12, 24/12"></label>
+      <label style="display:flex;flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-weight:500" ${S.admin?"":"hidden"}><input type="checkbox" id="vol-active"${v.active!==false?" checked":""}> Ativo na escala</label>
+      <div class="row"><button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-act="cancel-vol">Cancelar</button>
+      ${v.id && S.admin ? (S.confirmDel===v.id ? `<span class="confirm">Remover da equipe? <button class="btn danger" type="button" data-act="del-vol-yes">Sim</button><button class="btn" type="button" data-act="del-cel-no">Não</button></span>` : `<button class="btn ghost danger" type="button" data-act="del-vol">Remover</button>`) : ""}</div>
+    </form>`;
+  }
+  const all = [...S.volunteers].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  if (!all.length && !v){
+    h += `<div class="empty-state"><h3>Nenhum voluntário ainda</h3><p class="muted" style="margin:0">Cadastre quem serve na PASCOM e marque as funções de cada um.</p></div>`;
+  } else {
+    h += `<div>${all.map(p => `<div class="vol">
+      <div class="meta"><div class="n">${esc(p.name)}${S.admin && p.email?` <span class="small muted">${esc(p.email)}</span>`:""}${S.adminEmails.includes((p.email||"").toLowerCase())?` <span class="pill">coordenação</span>`:""}${p.active===false?` <span class="pill warn">inativo</span>`:""}</div>
+        <div class="chips">${(p.roles||[]).map(id=>roleById(id)).filter(Boolean).map(r=>`<span class="chip">${esc(r.name)}</span>`).join("") || `<span class="chip">sem função</span>`}
+        ${p.phone?`<span class="chip">${esc(p.phone)}</span>`:""}</div></div>
+      <span class="count" title="Vezes na escala de ${MES[S.month.m]}">${counts[p.id]||0}×</span>
+      ${S.admin || (p.email||"").toLowerCase()===myEmail() ? `<button class="btn" data-act="edit-vol" data-id="${p.id}">${S.admin?"Editar":"Minhas datas"}</button>` : ""}
+    </div>`).join("")}</div>
+    <p class="small muted" style="margin:0">O número ao lado de cada nome é quantas vezes a pessoa está na escala de ${MES[S.month.m]}.</p>`;
+  }
+  return h + `</section>`;
+}
+
+function viewAjustes(){
+  let h = `<section class="panel"><h2>Funções da equipe</h2>
+    <p class="small muted" style="margin:0">Cada função vira uma vaga em todas as celebrações. Use “vagas” quando precisar de mais de uma pessoa na mesma função.</p>
+    <div class="list">${roles().map(r=>`<div class="li">
+      <input id="rn-${r.id}" data-role-name="${r.id}" value="${esc(r.name)}" aria-label="Nome da função">
+      <label style="display:flex;flex-direction:row;gap:6px;align-items:center">vagas <input id="rq-${r.id}" data-role-qty="${r.id}" type="number" min="1" max="5" value="${r.qty||1}" style="width:64px"></label>
+      <button class="btn ghost" data-act="role-up" data-id="${r.id}" aria-label="Subir">↑</button>
+      <button class="btn ghost danger" data-act="role-del" data-id="${r.id}">Remover</button>
+    </div>`).join("")}</div>
+    <form class="li" id="form-role"><input id="new-role" placeholder="Nova função (ex.: Vídeo)" required><button class="btn primary" type="submit">Adicionar</button></form>
+  </section>
+  <section class="panel"><h2>Fotos e vídeos</h2>
+    <p class="small muted" style="margin:0">Cole o link de uma pasta do Google Drive compartilhada com a equipe como “Editor”. O botão “Enviar fotos e vídeos” de cada celebração abre essa pasta. Se uma celebração precisar de pasta própria, cole o link nela.</p>
+    <label>Link da pasta geral<input id="media-link" type="url" placeholder="https://drive.google.com/drive/folders/..." value="${esc((S.config&&S.config.mediaLink)||"")}"></label>
+  </section>
+  <section class="panel"><h2>Horários fixos de celebração</h2>
+    <p class="small muted" style="margin:0">Usados pelo botão “Criar celebrações do mês”. Marque as funções que cada horário precisa.</p>
+    <div class="list">${[...weekly()].sort((a,b)=>(a.weekday-b.weekday)||a.time.localeCompare(b.time)).map(w=>`<div class="li">
+      <select id="ww-${w.id}" data-w="${w.id}" data-wf="weekday" aria-label="Dia da semana">${WD.map((n,i)=>`<option value="${i}"${Number(w.weekday)===i?" selected":""}>${n}</option>`).join("")}</select>
+      <input id="wt-${w.id}" data-w="${w.id}" data-wf="time" type="time" value="${esc(w.time)}" aria-label="Horário">
+      <input id="wn-${w.id}" data-w="${w.id}" data-wf="title" value="${esc(w.title)}" aria-label="Celebração">
+      ${roles().map(r=>{ const on = !Array.isArray(w.roles) || w.roles.includes(r.id); return `<button class="chipbtn" aria-pressed="${on}" data-act="w-role" data-id="${w.id}" data-role="${r.id}">${esc(r.name)}</button>`; }).join("")}
+      <button class="btn ghost danger" data-act="w-del" data-id="${w.id}">Remover</button>
+    </div>`).join("")}</div>
+    <button class="btn" data-act="w-add">+ Adicionar horário</button>
+  </section>
+  <section class="panel"><h2>Coordenação</h2>
+    <p class="small muted" style="margin:0">Quem pode montar e alterar a escala. Os demais voluntários só veem a escala e informam as datas em que não podem servir.</p>
+    <div class="list">${S.adminEmails.map(e=>`<div class="li"><span style="flex:1">${esc(e)}</span>${e!==myEmail()?`<button class="btn ghost danger" data-act="adm-del" data-id="${esc(e)}">Remover</button>`:`<span class="small muted">você</span>`}</div>`).join("")}</div>
+    <form class="li" id="form-adm"><input id="new-adm" type="email" placeholder="E-mail de quem também vai coordenar" required><button class="btn primary" type="submit">Adicionar</button></form>
+  </section>`;
+  return h;
+}
+
+// ---------- eventos ----------
+$("#logout").addEventListener("click", () => { firebase.auth().signOut(); S.admin=false; S.adminEmails=[]; });
+document.querySelector("nav").addEventListener("click", e => {
+  const b = e.target.closest("button[data-view]"); if (!b) return;
+  S.view = b.dataset.view; S.editingVol=null; S.confirmDel=null; render();
+});
+
+document.addEventListener("click", async e => {
+  const go = e.target.closest("[data-view-go]"); if (go){ S.view = go.dataset.viewGo; render(); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  const setMonth = d => { const t = new Date(S.month.y, S.month.m+d, 1); S.month={y:t.getFullYear(), m:t.getMonth()}; lsSet("pascom-month", JSON.stringify(S.month)); S.confirmDel=null; render(); };
+  switch(act){
+    case "claim-admin": await store.claimAdmin(); toast("Pronto, você é da coordenação."); break;
+    case "adm-del": await store.setAdmins(S.adminEmails.filter(e=>e!==id)); break;
+    case "reset-pass": {
+      const em = $("#login-email").value.trim(); if (!em){ S.authMsg="Digite seu e-mail acima e toque de novo em “Esqueci a senha”."; render(); return; }
+      try { await firebase.auth().sendPasswordResetEmail(em); S.authMsg=""; toast("Enviamos um e-mail para criar uma nova senha."); } catch(err){ S.authMsg = AUTH_ERR[err.code] || "Não foi possível enviar o e-mail."; render(); }
+      break;
+    }
+    case "start-suggested": await ensureConfig(true); break;
+    case "start-blank": await ensureConfig(false); S.view="ajustes"; render(); break;
+    case "prev": setMonth(-1); break;
+    case "next": setMonth(1); break;
+    case "gen": b.disabled=true; await generateMonth(); break;
+    case "fill": b.disabled=true; await autoFill(); break;
+    case "add-cel": S.addingCel=true; render(); break;
+    case "cancel-cel": S.addingCel=false; render(); break;
+    case "wa": S.waOpen=!S.waOpen; render(); break;
+    case "copy": {
+      const txt = waText();
+      try { await navigator.clipboard.writeText(txt); toast("Texto copiado. É só colar no grupo."); }
+      catch(err){ const r=document.createRange(); r.selectNodeContents($("#wa-text")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Texto selecionado. Use Copiar do seu aparelho."); }
+      break;
+    }
+    case "del-cel": S.confirmDel=id; render(); break;
+    case "signup": {
+      const c = S.cels.find(x=>x.id===id); const me = myVolId(); if (!c || !me) return;
+      if ((c.assign||{})[b.dataset.key]){ toast("Alguém já pegou essa vaga."); return; }
+      await store.updCel(id, {assign: withSlot(c, b.dataset.key, me)}); toast("Você entrou na escala. Obrigado!"); break;
+    }
+    case "obs-clear": {
+      const c = S.cels.find(x=>x.id===id); if (!c) return;
+      const obs = {...(c.obs||{})}; delete obs[b.dataset.vol]; await store.updCel(id, {obs}); break;
+    }
+    case "del-cel-no": S.confirmDel=null; render(); break;
+    case "del-cel-yes": S.confirmDel=null; await store.delCel(id); toast("Celebração excluída."); break;
+    case "new-vol": S.editingVol={name:"",phone:"",roles:[],active:true,unavail:[]}; render(); $("#vol-name")?.focus(); break;
+    case "edit-vol": S.editingVol={...volById(id)}; S.confirmDel=null; render(); window.scrollTo({top:0}); break;
+    case "cancel-vol": S.editingVol=null; S.confirmDel=null; render(); break;
+    case "del-vol": S.confirmDel=S.editingVol.id; render(); break;
+    case "del-vol-yes": { const vid=S.editingVol.id; S.editingVol=null; S.confirmDel=null; await store.delVol(vid); toast("Voluntário removido."); break; }
+    case "role-del": {
+      if (S.confirmDel!=="role-"+id){ S.confirmDel="role-"+id; b.textContent="Confirmar remoção"; return; }
+      S.confirmDel=null; await saveConfig({roles: roles().filter(r=>r.id!==id)}); break;
+    }
+    case "role-up": { const rs=[...roles()]; const i=rs.findIndex(r=>r.id===id); if(i>0){ [rs[i-1],rs[i]]=[rs[i],rs[i-1]]; await saveConfig({roles:rs}); } break; }
+    case "w-add": await saveConfig({weekly:[...weekly(), {id:uid(), weekday:0, time:"10:00", title:"Missa"}]}); break;
+    case "w-role": {
+      await saveConfig({weekly: weekly().map(w => { if (w.id!==id) return w; const cur = Array.isArray(w.roles)?w.roles:roles().map(r=>r.id); const rid=b.dataset.role; return {...w, roles: cur.includes(rid)?cur.filter(x=>x!==rid):[...cur,rid]}; })});
+      break;
+    }
+    case "cel-role": {
+      const c = S.cels.find(x=>x.id===id); if(!c) return; const rid=b.dataset.role;
+      const cur = Array.isArray(c.roles)?c.roles:roles().map(r=>r.id);
+      await store.updCel(id, {roles: cur.includes(rid)?cur.filter(x=>x!==rid):[...cur,rid]});
+      break;
+    }
+    case "w-del": await saveConfig({weekly: weekly().filter(w=>w.id!==id)}); break;
+  }
+});
+
+document.addEventListener("change", async e => {
+  const t = e.target;
+  if (t.id==="focus-vol"){ S.focusVol=t.value; lsSet("pascom-focus", t.value); render(); return; }
+  if (t.dataset.cel){
+    const c = S.cels.find(x=>x.id===t.dataset.cel); if (!c) return;
+    await store.updCel(c.id, {assign: withSlot(c, t.dataset.role+"_"+t.dataset.i, t.value)}); return;
+  }
+  if (t.id==="media-link"){
+    const v = t.value.trim(); if (v && !safeUrl(v)){ toast("O link precisa começar com https://"); return; }
+    await saveConfig({mediaLink: v}); toast(v ? "Pasta de fotos e vídeos salva." : "Pasta removida."); return;
+  }
+  if (t.dataset.media){
+    const v = t.value.trim(); if (v && !safeUrl(v)){ toast("O link precisa começar com https://"); return; }
+    await store.updCel(t.dataset.media, {media: v}); toast(v ? "Pasta desta celebração salva." : "Voltou a usar a pasta geral."); return;
+  }
+  if (t.dataset.obs){
+    const c = S.cels.find(x=>x.id===t.dataset.obs); const me = myVolId(); if (!c || !me) return;
+    const obs = {...(c.obs||{})}; const v = t.value.trim(); if (v) obs[me]=v; else delete obs[me];
+    await store.updCel(c.id, {obs}); toast(v ? "Recado enviado para a coordenação." : "Recado apagado."); return;
+  }
+  if (t.dataset.note){ await store.updCel(t.dataset.note, {notes:t.value.trim()}); toast("Observação salva."); return; }
+  if (t.dataset.roleName){ const v=t.value.trim(); if(!v) return render(); await saveConfig({roles: roles().map(r=>r.id===t.dataset.roleName?{...r,name:v}:r)}); return; }
+  if (t.dataset.roleQty){ const q=Math.max(1,Math.min(5,parseInt(t.value)||1)); await saveConfig({roles: roles().map(r=>r.id===t.dataset.roleQty?{...r,qty:q}:r)}); return; }
+  if (t.dataset.w){ const f=t.dataset.wf; const val = f==="weekday"?Number(t.value):t.value; await saveConfig({weekly: weekly().map(w=>w.id===t.dataset.w?{...w,[f]:val}:w)}); return; }
+});
+
+document.addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id==="form-login"){
+    const mode = (e.submitter && e.submitter.dataset.mode) || "in";
+    const em = $("#login-email").value.trim(), pw = $("#login-pass").value;
+    S.authBusy = true; S.authMsg = ""; render(); $("#login-email").value = em; $("#login-pass").value = pw;
+    try { mode==="up" ? await firebase.auth().createUserWithEmailAndPassword(em,pw) : await firebase.auth().signInWithEmailAndPassword(em,pw); }
+    catch(err){ S.authMsg = AUTH_ERR[err.code] || "Não foi possível entrar. Tente de novo."; }
+    S.authBusy = false; if (S.mode==="login"){ render(); $("#login-email").value = em; }
+    return;
+  }
+  if (f.id==="form-adm"){ const em=$("#new-adm").value.trim().toLowerCase(); if(!em) return; if(!S.adminEmails.includes(em)) await store.setAdmins([...S.adminEmails, em]); toast("Coordenação atualizada."); return; }
+  if (f.id==="form-role"){ const n=$("#new-role").value.trim(); if(!n) return; await saveConfig({roles:[...roles(), {id:uid(), name:n, qty:1}]}); $("#new-role") && ($("#new-role").value=""); return; }
+  if (f.id==="form-cel"){
+    const date=$("#cel-date").value, time=$("#cel-time").value, title=$("#cel-title").value.trim()||"Missa";
+    if(!date||!time) return;
+    const croles = roles().filter(r=>$("#cr-"+r.id)?.checked).map(r=>r.id);
+    S.addingCel=false; await store.putCel(uid(), {date,time,title,assign:{},obs:{},notes:"",roles:croles});
+    const d=parseIso(date); if (d.getMonth()!==S.month.m || d.getFullYear()!==S.month.y){ S.month={y:d.getFullYear(),m:d.getMonth()}; }
+    toast("Celebração adicionada."); render(); return;
+  }
+  if (f.id==="form-vol"){
+    const name=$("#vol-name").value.trim() || S.editingVol.name; if(!name) return;
+    const unavail = $("#vol-unavail").value.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean).map(s=>{ const m=s.match(/^(\d{1,2})\/(\d{1,2})/); return m?pad(m[1])+"/"+pad(m[2]):null; }).filter(Boolean);
+    if (!S.admin){
+      const id = S.editingVol.id; S.editingVol=null;
+      await store.updVol(id, {phone:$("#vol-phone").value.trim(), unavail}); toast("Suas datas foram salvas."); render(); return;
+    }
+    const v = { name, email:$("#vol-email").value.trim().toLowerCase(), phone:$("#vol-phone").value.trim(), roles: roles().filter(r=>$("#vr-"+r.id)?.checked).map(r=>r.id), active: $("#vol-active").checked, unavail };
+    const oldId = S.editingVol.id;
+    const id = v.email || oldId || uid();
+    S.editingVol=null; await store.putVol(id, v);
+    if (oldId && oldId !== id){
+      // o cadastro passa a usar o e-mail como identificador: leva junto as vagas e recados
+      for (const c of S.cels){
+        const hasA = Object.values(c.assign||{}).includes(oldId), hasO = (c.obs||{})[oldId];
+        if (!hasA && !hasO) continue;
+        const assign = {}; Object.entries(c.assign||{}).forEach(([k,x]) => { if (x) assign[k] = x===oldId ? id : x; });
+        const obs = {...(c.obs||{})}; if (hasO){ obs[id] = obs[oldId]; delete obs[oldId]; }
+        await store.updCel(c.id, {assign, obs});
+      }
+      await store.delVol(oldId);
+    } toast("Voluntário salvo."); render();
+  }
+});
+
+boot();
+})();
+</script>
+</body>
+</html>
