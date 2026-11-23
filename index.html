@@ -193,7 +193,7 @@ const S = {
   cels: [],              // {id,date,time,title,roles[],assign:{"roleId_i":volId},obs:{volId:texto},notes}
   month: (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })(),
   focusVol: lsGet("pascom-focus") || "",
-  flt: {vol:"", role:"", wd:"", empty:false},
+  flt: {vol:"", role:"", wd:"", empty:false, q:""},
   editingVol: null,
   confirmDel: null,
   waOpen: false,
@@ -303,12 +303,15 @@ const assignedIds = c => Object.values(c.assign||{}).filter(Boolean);
 const isHere = (c, id) => !!(id && (c.here||{})[id]);
 const hereMark = (c, id) => isHere(c,id) ? `<span class="here" role="img" aria-label="Chegou e está pronto" title="Chegou e está pronto"></span><span class="heretxt">pronto</span>` : "";
 const todayIso = () => { const t=new Date(); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); };
-const fltOn = () => !!(S.flt.vol || S.flt.role || S.flt.wd!=="" || S.flt.empty);
+const norm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const nameMatch = c => !S.flt.q || norm(c.title).includes(norm(S.flt.q));
+const fltOn = () => !!(S.flt.vol || S.flt.role || S.flt.wd!=="" || S.flt.empty || S.flt.q);
 function passFilter(c){
   const f = S.flt, a = c.assign || {};
   const rs = celRoles(c).filter(r => !f.role || r.id===f.role);
   if (f.role && !rs.length) return false;
   if (f.wd!=="" && parseIso(c.date).getDay()!==+f.wd) return false;
+  if (!nameMatch(c)) return false;
   const slots = rs.flatMap(r => slotList(c, r));
   if (f.vol && !slots.includes(f.vol)) return false;
   if (f.empty && !slots.some(x=>!x)) return false;
@@ -486,12 +489,15 @@ function viewEscala(){
       <button class="btn ghost" data-act="goto-today">Hoje</button>
     </div>
     <div class="filters" role="search" aria-label="Filtrar a escala">
-      <label>🔎 Voluntário<select id="flt-vol"><option value="">Todos</option>${activeVols().map(v=>`<option value="${esc(v.id)}"${v.id===S.flt.vol?" selected":""}>${esc(v.name)}</option>`).join("")}</select></label>
+      <label>🔎 Nome da celebração<input id="flt-q" type="search" placeholder="Ex.: Crisma" value="${esc(S.flt.q)}" autocomplete="off"></label>
+      <label>Voluntário<select id="flt-vol"><option value="">Todos</option>${activeVols().map(v=>`<option value="${esc(v.id)}"${v.id===S.flt.vol?" selected":""}>${esc(v.name)}</option>`).join("")}</select></label>
       <label>Função<select id="flt-role"><option value="">Todas</option>${roles().map(r=>`<option value="${esc(r.id)}"${r.id===S.flt.role?" selected":""}>${esc(r.name)}</option>`).join("")}</select></label>
       <label>Dia da semana<select id="flt-wd"><option value="">Todos</option>${WD.map((w,i)=>`<option value="${i}"${String(i)===String(S.flt.wd)?" selected":""}>${esc(w)}</option>`).join("")}</select></label>
       <label class="chk"><input type="checkbox" id="flt-empty"${S.flt.empty?" checked":""}> Só com vaga vazia</label>
     </div>
     ${fltOn() ? `<div class="fltinfo"><span class="pill">Mostrando ${cels.filter(passFilter).length} de ${cels.length} celebrações</span><button class="btn ghost" data-act="flt-clear">Limpar filtros</button></div>` : ""}
+    ${S.flt.q ? (() => { const mk = monthKey(); const other = S.cels.filter(c => c.date && !c.date.startsWith(mk) && nameMatch(c)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,12);
+      return other.length ? `<div class="fltinfo"><span class="small muted">Em outros meses:</span>${other.map(c=>`<button class="btn ghost" data-act="goto-cel" data-date="${esc(c.date)}">${ddmm(c.date)} · ${esc(c.title)}</button>`).join("")}</div>` : ""; })() : ""}
     <div class="row" ${S.admin?"":"hidden"}>
       <button class="btn primary" data-act="gen">Criar celebrações do mês</button>
       <button class="btn" data-act="fill">Preencher vagas automaticamente</button>
@@ -566,10 +572,11 @@ function viewEscala(){
         return `<button class="btn ghost" data-act="extra-add" data-id="${c.id}" data-role="${r.id}">+1 ${esc(r.name)}</button>${x ? `<button class="btn ghost danger" data-act="extra-del" data-id="${c.id}" data-role="${r.id}"${last?` disabled title="Esvazie a vaga extra antes de remover"`:""}>−1 ${esc(r.name)}</button>` : ""}`;
       }).join("")}</div>` : ""}
       <div class="celfoot" ${S.admin?"":"hidden"}><span class="small muted">Funções:</span>${roles().map(r=>{ const on = celRoles(c).some(x=>x.id===r.id); return `<button class="chipbtn" aria-pressed="${on}" data-act="cel-role" data-id="${c.id}" data-role="${r.id}">${esc(r.name)}</button>`; }).join("")}</div>
+      ${canEdit() ? `<div class="celfoot"><input id="title-${c.id}" data-title="${c.id}" placeholder="Nome da celebração (ex.: Missa do Crisma)" value="${esc(c.title||"")}" aria-label="Nome da celebração"></div>` : ""}
       <div class="celfoot"><input id="note-${c.id}" data-note="${c.id}" placeholder="Observação da coordenação (ex.: chegar 30 min antes)" value="${esc(c.notes||"")}" ${S.admin?"":"hidden"}></div>
       ${obsList(c).length ? `<div class="obs">${obsList(c).map(([vid,t]) => `<div class="obsitem"><b>${esc(volById(vid)?.name || "Voluntário")}:</b> <span>${esc(t)}</span>${canEdit()?` <button class="btn ghost" data-act="obs-clear" data-id="${c.id}" data-vol="${esc(vid)}">Resolvido</button>`:""}</div>`).join("")}</div>` : ""}
       <div class="celfoot">
-        ${safeUrl(c.media) ? `<a class="btn ghost" href="${esc(safeUrl(c.media))}" target="_blank" rel="noopener">👁️ Ver fotos</a><button class="btn ghost" data-act="copy-photos" data-id="${c.id}">🔗 Copiar link das fotos</button>` : ""}
+        ${safeUrl(c.mediaPub) ? `<a class="btn ghost" href="${esc(safeUrl(c.mediaPub))}" target="_blank" rel="noopener">👁️ Ver fotos</a><button class="btn ghost" data-act="copy-photos" data-id="${c.id}">🔗 Copiar link das fotos</button>` : ""}
         ${mediaLink(c) && (canEdit() || (me && assignedIds(c).includes(me))) ? `<a class="btn" href="${esc(mediaLink(c))}" target="_blank" rel="noopener">Enviar fotos e vídeos</a>` : (canEdit() ? `<span class="small muted">Sem pasta para fotos e vídeos. Cadastre em Funções e horários.</span>` : "")}
         ${canEdit() ? `<input id="media-${c.id}" data-media="${c.id}" type="url" placeholder="Pasta só desta celebração (opcional)" value="${esc(c.media||"")}">` : ""}
       </div>
@@ -681,12 +688,13 @@ document.addEventListener("click", async e => {
     case "cancel-cel": S.addingCel=false; render(); break;
     case "wa": S.waOpen=!S.waOpen; render(); break;
     case "copy-photos": {
-      const c = S.cels.find(x=>x.id===id); const url = c && safeUrl(c.media); if (!url) break;
+      const c = S.cels.find(x=>x.id===id); const url = c && safeUrl(c.mediaPub); if (!url) break;
       try { await navigator.clipboard.writeText(url); toast("Link das fotos copiado. É só colar no Instagram."); }
       catch(err){ prompt("Copie o link das fotos:", url); }
       break;
     }
-    case "flt-clear": S.flt={vol:"", role:"", wd:"", empty:false}; render(); break;
+    case "flt-clear": S.flt={vol:"", role:"", wd:"", empty:false, q:""}; render(); break;
+    case "goto-cel": gotoDate(b.dataset.date); break;
     case "goto-today": { const t=new Date(); gotoDate(iso(t.getFullYear(),t.getMonth(),t.getDate())); break; }
     case "copy": {
       const txt = waText();
@@ -760,6 +768,12 @@ function gotoDate(v){
   requestAnimationFrame(()=>{ a.scrollIntoView({behavior:"smooth", block:"start"}); a.classList.remove("flash"); void a.offsetWidth; a.classList.add("flash"); });
 }
 
+let qTimer = null;
+document.addEventListener("input", e => {
+  if (e.target.id !== "flt-q") return;
+  const v = e.target.value; clearTimeout(qTimer);
+  qTimer = setTimeout(() => { S.flt.q = v; render(); const el = $("#flt-q"); if (el){ el.focus(); const n=el.value.length; try{ el.setSelectionRange(n,n); }catch(_){} } }, 250);
+});
 document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id==="goto-date"){ gotoDate(t.value); return; }
@@ -785,6 +799,7 @@ document.addEventListener("change", async e => {
     const obs = {...(c.obs||{})}; const v = t.value.trim(); if (v) obs[me]=v; else delete obs[me];
     await store.updCel(c.id, {obs}); toast(v ? "Recado enviado para a coordenação." : "Recado apagado."); return;
   }
+  if (t.dataset.title){ const v=t.value.trim()||"Missa"; await store.updCel(t.dataset.title, {title:v}); toast("Nome da celebração salvo."); return; }
   if (t.dataset.note){ await store.updCel(t.dataset.note, {notes:t.value.trim()}); toast("Observação salva."); return; }
   if (t.dataset.roleName){ const v=t.value.trim(); if(!v) return render(); await saveConfig({roles: roles().map(r=>r.id===t.dataset.roleName?{...r,name:v}:r)}); return; }
   if (t.dataset.roleQty){ const q=Math.max(1,Math.min(5,parseInt(t.value)||1)); await saveConfig({roles: roles().map(r=>r.id===t.dataset.roleQty?{...r,qty:q}:r)}); return; }
